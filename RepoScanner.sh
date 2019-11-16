@@ -64,13 +64,16 @@ DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )"
 
 if [ -n "$v" ]; then
   echo "Command line arguments - text: $t, verbose: $v, hidden: $h, path: $p"
-  echo "Executing command: "$DIR/SearchLib/a.out $p $h $v
+  echo "Executing command: "$DIR/SearchLib/RepoScannerProgram $p $h $v
 fi
 
 # Execute C program to search for files
-REPOS=$($DIR/SearchLib/a.out $p $v $h)
+# REPOS=$($DIR/SearchLib/RepoScannerProgram $p $v $h)
 
-if [ -n "$t" ]; then
+# Execute C program to search for files
+REPOS=$(/opt/repoScanner/SearchLib/RepoScannerProgram $p $v $h)
+
+if [ -n "$t" ] || [ -n "$v" ]; then
   echo "$REPOS"
 else
   # Index is stored in $REPLY variable
