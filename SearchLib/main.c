@@ -7,60 +7,80 @@
 #include <string.h>
 #include <limits.h>
 
+struct file_path_list {
+  char **paths;
+  unsigned int index;
+  size_t capacity;
+};
 
-void expand_local_files(char **local_files, size_t *curr_length);
-void free_local_files(char ***local_files, size_t index);
-void add_local_file(char **local_files, char *file, size_t *curr_length, size_t *index);
+static void path_list_expand(struct file_path_list *list);
+void path_list_free(struct file_path_list *list);
+void path_list_add(struct file_path_list *list, char *path);
+
+int debug_allocation = 0;
 
 
-int debug_allocation = 1;
-
-
-void add_local_file(char **local_files, char *file, size_t *curr_length, size_t *index) {
+void path_list_add(struct file_path_list *list, char *path) {
   if (debug_allocation == 1) {
     printf("Adding\n");
   }
-  if ( *index + 1 >= *curr_length ) {
-    expand_local_files(local_files, curr_length);
+  if ( list->index + 1 >= list->capacity ) {
+    path_list_expand(list);
   }
   if (debug_allocation == 1) {
     printf("Done expanding\n");
-    printf("Adding new file %s, length %d, index %d\n", file, *curr_length, *index);
+    printf("Adding new file %s, length %d, index %d\n", path, list->capacity, list->index);
   }
-  local_files[*index] = file;
-  (*index)++;
+  list->paths[list->index] = path;
+  (list->index)++;
   if (debug_allocation == 1) {
     printf("Done adding\n");
   }
 }
 
-
-void free_local_files(char ***local_files, size_t index) {
+void path_list_free(struct file_path_list *list) {
   if (debug_allocation == 1) {
     printf("Freeing\n");
   }
-  for (int i = 0; i < index; i++) {
-    free(*(local_files)[i]);
+  for (int i = 0; i < list->index; i++) {
+    free(list->paths[i]);
   }
-  free(*local_files);
+  free(list->paths);
 }
 
 
-void expand_local_files(char **local_files, size_t *curr_length) {
+void path_list_expand(struct file_path_list *list) {
   if (debug_allocation == 1) {
     printf("Expanding\n");
   }
   size_t expand_length = 10;
-  char **tmp = malloc(*curr_length + expand_length * sizeof(char *));
+  char **tmp = (char**) malloc((list->capacity + expand_length) * sizeof(char *));
   if (tmp == NULL) {
     printf("Error when trying to allocate expanded memory for local files\n");
   }
-  for (int i = 0; i < *curr_length; i++) {
-    tmp[i] = (local_files)[i];
+  for (int i = 0; i < list->index; i++) {
+    tmp[i] = (char*) malloc(255 * sizeof(char));
+    strcpy(tmp[i], (list->paths)[i]);
   }
-  free(*local_files);
-  local_files = tmp;
-  *curr_length += expand_length;
+  path_list_free(list);
+  list->paths = tmp;
+  list->capacity += expand_length;
+}
+
+struct file_path_list *path_list_init() {
+  struct file_path_list *created;
+  created = malloc(sizeof(struct file_path_list));
+  if (created == NULL) {
+    printf("Failed to initialize new file_path_list struct");
+  }
+  int init_size = 10;
+  created->paths = (char**) malloc(init_size * sizeof(char *));
+  if (created->paths == NULL) {
+    printf("Failed to initialize paths for new file_path_list\n");
+  }
+  created->capacity = 10;
+  created->index = 0;
+  return created;
 }
 
 
@@ -75,14 +95,13 @@ int search(char *path, int verbose, int searchHidden, char **repos,
 	struct dirent *dir;
 	char buf[PATH_MAX + 1];
 
-  char **local_files; 
-  size_t local_files_size = 10;
-  size_t index = 0;
+  struct file_path_list *local_files;
 
-  local_files = malloc(local_files_size * sizeof(char*));
+
+  local_files = path_list_init();
+
 
 	d = opendir(path);
-
 
 	while (d && (dir = readdir(d)) != NULL) {
 		realpath(dir->d_name, buf);
@@ -112,12 +131,12 @@ int search(char *path, int verbose, int searchHidden, char **repos,
 				int len = strlen(d_path);
 				d_path[len - 4] = '\0';
 				sprintf(repos[(*repo_index)++], "%s", d_path);
-        free_local_files(&local_files, index);
+        path_list_free(local_files);
 				printf("%s\n", d_path);
         return 0;
 			} else {
 				if (searchHidden == 1 || dir->d_name[0] != '.') {
-          add_local_file(local_files, d_path, &local_files_size, &index);
+          path_list_add(local_files, d_path);
 				}
 			}
 		} else {
@@ -128,13 +147,13 @@ int search(char *path, int verbose, int searchHidden, char **repos,
 		}
 	}
 
-  for (int i = 0; i < index; i++) {
-		search(local_files[i], verbose, searchHidden,
+  for (int i = 0; i < local_files->index; i++) {
+		search(local_files->paths[i], verbose, searchHidden,
 		  repos, repo_index);
   }
 
 	closedir(d);
-  free(local_files);
+  path_list_free(local_files);
 	return 0;
 }
 
