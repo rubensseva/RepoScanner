@@ -7,6 +7,63 @@
 #include <string.h>
 #include <limits.h>
 
+
+void expand_local_files(char **local_files, size_t *curr_length);
+void free_local_files(char ***local_files, size_t index);
+void add_local_file(char **local_files, char *file, size_t *curr_length, size_t *index);
+
+
+int debug_allocation = 1;
+
+
+void add_local_file(char **local_files, char *file, size_t *curr_length, size_t *index) {
+  if (debug_allocation == 1) {
+    printf("Adding\n");
+  }
+  if ( *index + 1 >= *curr_length ) {
+    expand_local_files(local_files, curr_length);
+  }
+  if (debug_allocation == 1) {
+    printf("Done expanding\n");
+    printf("Adding new file %s, length %d, index %d\n", file, *curr_length, *index);
+  }
+  local_files[*index] = file;
+  (*index)++;
+  if (debug_allocation == 1) {
+    printf("Done adding\n");
+  }
+}
+
+
+void free_local_files(char ***local_files, size_t index) {
+  if (debug_allocation == 1) {
+    printf("Freeing\n");
+  }
+  for (int i = 0; i < index; i++) {
+    free(*(local_files)[i]);
+  }
+  free(*local_files);
+}
+
+
+void expand_local_files(char **local_files, size_t *curr_length) {
+  if (debug_allocation == 1) {
+    printf("Expanding\n");
+  }
+  size_t expand_length = 10;
+  char **tmp = malloc(*curr_length + expand_length * sizeof(char *));
+  if (tmp == NULL) {
+    printf("Error when trying to allocate expanded memory for local files\n");
+  }
+  for (int i = 0; i < *curr_length; i++) {
+    tmp[i] = (local_files)[i];
+  }
+  free(*local_files);
+  local_files = tmp;
+  *curr_length += expand_length;
+}
+
+
 int search(char *path, int verbose, int searchHidden, char **repos,
 	   int *repo_index)
 {
@@ -18,9 +75,15 @@ int search(char *path, int verbose, int searchHidden, char **repos,
 	struct dirent *dir;
 	char buf[PATH_MAX + 1];
 
+  char **local_files; 
+  size_t local_files_size = 10;
+  size_t index = 0;
+
+  local_files = malloc(local_files_size * sizeof(char*));
+
 	d = opendir(path);
 
-	// Go through files and folders in this directory
+
 	while (d && (dir = readdir(d)) != NULL) {
 		realpath(dir->d_name, buf);
 		if (dir->d_type == DT_REG) {
@@ -36,7 +99,10 @@ int search(char *path, int verbose, int searchHidden, char **repos,
 				printf("[%s] ", buf);
 				printf("Directory: %s\n", dir->d_name);
 			}
-			char d_path[255];
+			char *d_path = malloc(255*sizeof(char));
+      if (d_path == NULL) {
+        printf("Error when allocating for d_path\n");
+      }
 			sprintf(d_path, "%s/%s", path, dir->d_name);
 			if (strcmp(dir->d_name, ".git") == 0) {
 				if (verbose == 1) {
@@ -46,14 +112,12 @@ int search(char *path, int verbose, int searchHidden, char **repos,
 				int len = strlen(d_path);
 				d_path[len - 4] = '\0';
 				sprintf(repos[(*repo_index)++], "%s", d_path);
+        free_local_files(&local_files, index);
 				printf("%s\n", d_path);
+        return 0;
 			} else {
-				if (searchHidden == 1) {
-					search(d_path, verbose, searchHidden,
-					       repos, repo_index);
-				} else if (dir->d_name[0] != '.') {
-					search(d_path, verbose, searchHidden,
-					       repos, repo_index);
+				if (searchHidden == 1 || dir->d_name[0] != '.') {
+          add_local_file(local_files, d_path, &local_files_size, &index);
 				}
 			}
 		} else {
@@ -63,7 +127,14 @@ int search(char *path, int verbose, int searchHidden, char **repos,
 			}
 		}
 	}
+
+  for (int i = 0; i < index; i++) {
+		search(local_files[i], verbose, searchHidden,
+		  repos, repo_index);
+  }
+
 	closedir(d);
+  free(local_files);
 	return 0;
 }
 
@@ -99,6 +170,12 @@ int main(int argc, char *argv[])
 	int repo_index = 0;
 
 	search(path, verbose, searchHidden, repos, &repo_index);
+
+
+  for (int i = 0; i < repo_index; i++) {
+    free(repos[i]);
+  }
+  free(repos);
 
 	return (0);
 }
