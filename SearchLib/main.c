@@ -17,33 +17,17 @@ static void path_list_expand(struct file_path_list *list);
 void path_list_free(struct file_path_list *list);
 void path_list_add(struct file_path_list *list, char *path);
 
-int debug_allocation = 0;
-
 void path_list_add(struct file_path_list *list, char *path)
 {
-	if (debug_allocation == 1) {
-		printf("Adding\n");
-	}
 	if (list->index + 1 >= list->capacity) {
 		path_list_expand(list);
 	}
-	if (debug_allocation == 1) {
-		printf("Done expanding\n");
-		printf("Adding new file %s, length %d, index %d\n", path,
-		       list->capacity, list->index);
-	}
 	list->paths[list->index] = path;
 	(list->index)++;
-	if (debug_allocation == 1) {
-		printf("Done adding\n");
-	}
 }
 
 void path_list_free(struct file_path_list *list)
 {
-	if (debug_allocation == 1) {
-		printf("Freeing\n");
-	}
 	for (int i = 0; i < list->index; i++) {
 		free(list->paths[i]);
 	}
@@ -52,9 +36,6 @@ void path_list_free(struct file_path_list *list)
 
 void path_list_expand(struct file_path_list *list)
 {
-	if (debug_allocation == 1) {
-		printf("Expanding\n");
-	}
 	size_t expand_length = 10;
 	char **tmp = (char **)malloc((list->capacity + expand_length) *
 				     sizeof(char *));
