@@ -140,11 +140,9 @@ int search(char *path, int verbose, int searchHidden, char **repos,
 				}
 			}
 		} else {
-			if (verbose == 1) {
-				printf("not regular file, could be symlink etc: %s\n",
-				       dir->d_name);
-			}
+				//not regular file, could be symlink etc
 		}
+		
 	}
 
   for (int i = 0; i < local_files->index; i++) {
