@@ -7,7 +7,7 @@ install: compile
 	cp RepoScanner.sh /opt/repoScanner/
 	chmod +x /opt/repoScanner/RepoScanner.sh
 	cp SearchLib/RepoScannerProgram /opt/repoScanner/SearchLib/
-	ln /opt/repoScanner/RepoScanner.sh /bin/reposcan
+	ln /opt/repoScanner/SearchLib/RepoScannerProgram /bin/reposcan
 
 uninstall:
 	rm -r /opt/repoScanner/

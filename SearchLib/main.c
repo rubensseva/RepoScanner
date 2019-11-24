@@ -1,66 +1,67 @@
+#define _GNU_SOURCE
+
 #include <dirent.h> 
 #include <stdio.h> 
 #include <stdlib.h>
-/* #include <sys/stat.h> */
- #include <unistd.h>
+#include <unistd.h>
 #include <string.h>
-#include <limits.h>       //For PATH_MAX
-
+#include <limits.h> 
 
 
 
 int search(char* path, int verbose, int searchHidden, char** repos, int *repo_index) {
-
   if (verbose) {
     printf("\n---------\nSearching in directory: %s\n", path);
   }
+
   DIR *d;
   struct dirent *dir;
-  d = opendir(path);
   char buf[PATH_MAX + 1]; 
 
-  if (d) {
-    while ((dir = readdir(d)) != NULL) {
-      realpath(dir->d_name, buf);
+  d = opendir(path);
 
-      if (dir->d_type == DT_REG) {
-        if (verbose == 1) {
-          printf ("[%s] ", buf);
-          printf("Regular file: %s\n", dir->d_name);
-        }
-      }
-
-      if(dir -> d_type == DT_DIR && strcmp(dir->d_name,".")!=0 && strcmp(dir->d_name,"..")!=0 ) { // if it is a directory
-        if (verbose == 1) {
-          printf ("[%s] ", buf);
-          printf("Directory: %s\n", dir->d_name);
-        }
-
-        char d_path[255];
-        sprintf(d_path, "%s/%s", path, dir->d_name);
-        if (strcmp(dir->d_name, ".git") == 0) {
-          if (verbose == 1) {
-            printf("Found git repo!");
-            printf("In: %s\n", d_path);
-          }
-          sprintf(repos[(*repo_index)++], "%s", d_path);
-        } else {
-          if (searchHidden == 1) {
-            search(d_path, verbose, searchHidden, repos, repo_index);
-          }
-          else if (searchHidden == 0 && dir->d_name[0] != '.') {
-            search(d_path, verbose, searchHidden, repos, repo_index);
-          }
-        }
-      }
-
-      else {
-        /* printf("not regular file, could be symlink etc: %s\n", dir->d_name); */
-        /* printf("\n"); */
+  // Go through files and folders in this directory
+  while (d && (dir = readdir(d)) != NULL) {
+    realpath(dir->d_name, buf);
+    if (dir->d_type == DT_REG) {
+      if (verbose == 1) {
+        printf ("[%s] ", buf);
+        printf("Regular file: %s\n", dir->d_name);
       }
     }
-    closedir(d);
+    // If it is a directory
+    if(dir->d_type == DT_DIR && strcmp(dir->d_name,".") != 0 && strcmp(dir->d_name,"..") != 0 ) {
+      if (verbose == 1) {
+        printf ("[%s] ", buf);
+        printf("Directory: %s\n", dir->d_name);
+      }
+      char d_path[255];
+      sprintf(d_path, "%s/%s", path, dir->d_name);
+      if (strcmp(dir->d_name, ".git") == 0) {
+        if (verbose == 1) {
+          printf("Found git repo!");
+          printf("In: %s\n", d_path);
+        }
+        int len = strlen(d_path);
+        d_path[len - 4] = '\0';
+        sprintf(repos[(*repo_index)++], "%s", d_path);
+        printf("%s\n", d_path);
+      } else {
+        if (searchHidden == 1) {
+          search(d_path, verbose, searchHidden, repos, repo_index);
+        }
+        else if (dir->d_name[0] != '.') {
+          search(d_path, verbose, searchHidden, repos, repo_index);
+        }
+      }
+    }
+    else {
+      if (verbose == 1) {
+        printf("not regular file, could be symlink etc: %s\n", dir->d_name);
+      }
+    }
   }
+  closedir(d);
   return 0;
 }
 
@@ -97,27 +98,6 @@ int main(int argc, char* argv[])
   int repo_index = 0;
 
   search(path, verbose, searchHidden, repos, &repo_index);
-
-  for (int i = 0; i < repo_index; i++) {
-    printf("%s\n", repos[i]);
-  }
-
-
-  /* printf("Choose repo to enter by value. q to exit :"); */
-  /* char choice[100]; */
-
-  /* scanf("%s", choice); */
-  /* int res = atoi(choice); */
-  /* printf("you pressed %s\n", choice); */
-  /* if (res == 0) { */
-  /*   printf("Exiting\n"); */
-  /*   return 0; */
-  /* } */
-  /* printf("You chose %d, entering directory %s\n", res, repos[res]); */
-
-  /* if (chdir(repos[res]) == -1) { */
-  /*   printf("Error when entering directory"); */
-  /* } */
 
   return(0);
 }
