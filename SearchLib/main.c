@@ -11,8 +11,7 @@
 
 
 
-int search(char *path, int verbose, int searchHidden, char **repos,
-	   int *repo_index)
+int search(char *path, int verbose, int searchHidden, struct file_path_list *repos)
 {
 	if (verbose) {
 		printf("\n---------\nSearching in directory: %s\n", path);
@@ -58,9 +57,9 @@ int search(char *path, int verbose, int searchHidden, char **repos,
 				}
 				int len = strlen(d_path);
 				d_path[len - 4] = '\0';       // Cut .git extension from output string
-				sprintf(repos[(*repo_index)++], "%s", d_path);
-				path_list_free(local_files);  // Delete the cached files
 				printf("%s\n", d_path);
+        path_list_add(repos, d_path);
+				path_list_free(local_files);  // Delete the cached files
 				return 0;
       // If the directory is not a .git folder
 			} else {
@@ -76,8 +75,7 @@ int search(char *path, int verbose, int searchHidden, char **repos,
   // All files and folders in this directory are checked, if no git repo was 
   // found we can recursively search the foulders that was found
 	for (int i = 0; i < local_files->index; i++) {
-		search(local_files->paths[i], verbose, searchHidden, repos,
-		       repo_index);
+		search(local_files->paths[i], verbose, searchHidden, repos);
 	}
 
 	closedir(d);
@@ -108,16 +106,10 @@ int main(int argc, char *argv[])
 	if (verbose == 1) {
 		printf("searching for path %s\n", path);
 	}
-	char **repos;
-	repos = malloc(1000 * sizeof(char *));
-	for (int i = 0; i < 1000; i++) {
-		repos[i] = malloc(1000 * sizeof(char));
-	}
-	int repo_index = 0;
-	search(path, verbose, searchHidden, repos, &repo_index);
-	for (int i = 0; i < repo_index; i++) {
-		free(repos[i]);
-	}
-	free(repos);
+  struct file_path_list *repos = path_list_init();
+
+	search(path, verbose, searchHidden, repos);
+
+  path_list_free(repos);
 	return (0);
 }
